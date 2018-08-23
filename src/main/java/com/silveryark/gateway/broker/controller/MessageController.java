@@ -15,9 +15,9 @@ import reactor.core.publisher.Mono;
 @RestController
 public class MessageController {
 
-    private static Logger LOGGER = LoggerFactory.getLogger(MessageController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageController.class);
 
-    final BrokerServer brokerServer;
+    private final BrokerServer brokerServer;
 
     @Autowired
     public MessageController(BrokerServer brokerServer) {
@@ -25,14 +25,14 @@ public class MessageController {
     }
 
     @PostMapping("/cmd")
-    public Mono<GenericResponse> cmd(@RequestBody OutboundMessage request){
+    public Mono<GenericResponse> cmd(@RequestBody OutboundMessage request) {
         LOGGER.debug("received cmd message {}", request);
         brokerServer.apply(BrokerServer.Topic.CMD, request);
         return Mono.just(new GenericResponse(request.getRequestId(), RPCResponse.STATUS.OK, Boolean.TRUE));
     }
 
     @PostMapping("/message")
-    public Mono<GenericResponse> message(@RequestBody OutboundMessage request){
+    public Mono<GenericResponse> message(@RequestBody OutboundMessage request) {
         LOGGER.debug("received normal message {}", request);
         brokerServer.apply(BrokerServer.Topic.MESSAGE, request);
         return Mono.just(new GenericResponse(request.getRequestId(), RPCResponse.STATUS.OK, Boolean.TRUE));
