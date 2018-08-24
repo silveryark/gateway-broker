@@ -6,26 +6,23 @@ import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
 import javax.annotation.PostConstruct;
-import java.io.IOException;
+import javax.annotation.PreDestroy;
 
 @Service
 public class ZMQConnector implements Connector {
 
+    private static ZContext context = new ZContext();
+    private static ZMQ.Socket publisher = context.createSocket(ZMQ.PUB);
     @Value("${broker.connection}")
     private String connection;
 
-    private ZContext context;
-    private ZMQ.Socket publisher;
-
     @PostConstruct
     protected void init() {
-        context = new ZContext();
-        publisher = context.createSocket(ZMQ.PUB);
         publisher.bind(connection);
     }
 
-    @Override
-    public void close() throws IOException {
+    @PreDestroy
+    protected void destroy() {
         publisher.close();
         context.close();
     }

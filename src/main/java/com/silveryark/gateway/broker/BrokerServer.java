@@ -12,6 +12,7 @@ import reactor.util.function.Tuples;
 
 import javax.annotation.PreDestroy;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.*;
 
 @Service
@@ -20,15 +21,11 @@ public class BrokerServer {
     private static final int TIMEOUT_FOR_TERMINATION_WORKER = 10;
     private static final int TIMEOUT_FOR_TERMINATION_JOB = 10;
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerServer.class);
-    private final OutboundMessageSerializer outboundMessageSerializer;
-    private final Connector connector;
     private BlockingQueue<Tuple2<Topic, OutboundMessage>> messageQueue = new LinkedBlockingQueue<>();
     private ExecutorService workers = Executors.newSingleThreadExecutor();
 
     @Autowired
     public BrokerServer(OutboundMessageSerializer outboundMessageSerializer, Connector connector) {
-        this.outboundMessageSerializer = outboundMessageSerializer;
-        this.connector = connector;
         //注册broker，启动event loop，之所以不放到PostConstruct里面是因为在unit test的时候 global的 对象不会被调用 construct
         //只有每个test时创建的Service会PostConstruct
         workers.submit(() -> {
@@ -41,17 +38,15 @@ public class BrokerServer {
                     LOGGER.debug("send message with connector: {}, and serializer: {}", connector,
                             outboundMessageSerializer);
                     byte[] serializedMessage = outboundMessageSerializer.serialize(packedMessage.getT2());
-                    connector.sendMore(packedMessage.getT1().name().getBytes());
+                    connector.sendMore(packedMessage.getT1().name().getBytes(StandardCharsets.UTF_8));
                     connector.send(serializedMessage);
                     LOGGER.debug("serialized message {} sent", serializedMessage);
                 } catch (InterruptedException e) {
                     LOGGER.debug("Interrupted");
                     Thread.currentThread().interrupt();
                 } catch (IOException e) {
-                    if (packedMessage != null) {
-                        LOGGER.error("serialize outbound message {} error", packedMessage.getT2(), e);
-                    }
-                } catch (Exception e) {
+                    LOGGER.error("serialize outbound message {} error", packedMessage.getT2(), e);
+                } catch (RuntimeException e) {
                     LOGGER.error("Unknown exception.", e);
                 }
             }
@@ -74,11 +69,6 @@ public class BrokerServer {
             Thread.currentThread().interrupt();
         }
         //停掉发送者
-        try {
-            connector.close();
-        } catch (IOException e) {
-            LOGGER.error("IOException when close connector", e);
-        }
         workers.shutdownNow();
         try {
             while (!workers.isTerminated()) {
