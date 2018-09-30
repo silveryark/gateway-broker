@@ -16,6 +16,10 @@ public class ZMQConnector implements Connector {
     @Value("${broker.connection}")
     private String connection;
 
+    protected ZMQConnector() {
+        
+    }
+
     @PostConstruct
     protected void init() {
         publisher.bind(connection);
